@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayPal Telegram Checkout</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=YOUR_LIVE_CLIENT_ID&currency=USD&components=buttons,hosted-fields,payment-fields,fastlane"></script>
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div id="checkout-container">
+    <div id="fastlane-banner" class="hidden">
+      <p>⚡ Fast checkout with Fastlane</p>
+      <div id="fastlane-button"></div>
+      <button onclick="showManualMethods()">Other payment methods</button>
+    </div>
+
+    <div id="manual-methods" class="hidden">
+      <h2>Choose Payment Method</h2>
+      <select id="payment-method">
+        <option value="paypal">PayPal</option>
+        <option value="cards">Credit/Debit Card</option>
+        <option value="pyusd">PYUSD (Crypto)</option>
+        <option value="local">Local Payment</option>
+      </select>
+      <div id="dynamic-payment-ui"></div>
+    </div>
+
+    <div id="success-message" class="hidden">
+      <h2>Payment Successful! 🎉</h2>
+      <p>Returning to Telegram...</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      Telegram.WebApp.ready();
+      Telegram.WebApp.expand();
+      initFastlane();
+    });
+
+    function initFastlane() {
+      paypal.Fastlane.detect().then(({ isEnabled }) => {
+        if (isEnabled) {
+          document.getElementById('fastlane-banner').classList.remove('hidden');
+          paypal.Fastlane.render('#fastlane-button', {
+            createOrder: () => createOrder('fastlane'),
+            onApprove: (data) => handleApproval(data, 'fastlane')
+          });
+        } else {
+          showManualMethods();
+        }
+      });
+    }
+
+    function showManualMethods() {
+      document.getElementById('fastlane-banner').classList.add('hidden');
+      document.getElementById('manual-methods').classList.remove('hidden');
+      setupMethodSelector();
+    }
+
+    function setupMethodSelector() {
+      const methodSelector = document.getElementById('payment-method');
+      methodSelector.addEventListener('change', (e) => {
+        const method = e.target.value;
+        renderPaymentUI(method);
+      });
+      renderPaymentUI(methodSelector.value);
+    }
+
+    function renderPaymentUI(method) {
+      const container = document.getElementById('dynamic-payment-ui');
+      container.innerHTML = '';
+
+      switch(method) {
+        case 'paypal':
+          paypal.Buttons({
+            style: { layout: 'vertical' },
+            createOrder: () => createOrder('paypal'),
+            onApprove: (data) => handleApproval(data, 'paypal'),
+            onError: (err) => showError(err)
+          }).render(container);
+          break;
+        case 'cards':
+          container.innerHTML = `
+            <div id="card-number" class="card-field"></div>
+            <div id="expiry-date" class="card-field"></div>
+            <div id="cvv" class="card-field"></div>
+            <button id="card-submit">Pay with Card</button>
+          `;
+          paypal.HostedFields.render({
+            fields: {
+              number: { selector: "#card-number", placeholder: "4111 1111 1111 1111" },
+              cvv: { selector: "#cvv", placeholder: "123" },
+              expirationDate: { selector: "#expiry-date", placeholder: "MM/YY" }
+            },
+            createOrder: () => createOrder('card'),
+            onApprove: (data) => handleApproval(data, 'card'),
+            onError: (err) => showError(err)
+          });
+          break;
+        case 'pyusd':
+          container.innerHTML = `
+            <button onclick="initPYUSD()" class="pyusd-btn">Pay with PYUSD</button>
+          `;
+          break;
+        case 'local':
+          paypal.PaymentFields.render({
+            fields: ['local'],
+            createOrder: () => createOrder('local'),
+            onApprove: (data) => handleApproval(data, 'local'),
+            onError: (err) => showError(err)
+          }).render(container);
+          break;
+      }
+    }
+
+    function initPYUSD() {
+      paypal.Buttons({
+        fundingSource: paypal.FUNDING.PYUSD,
+        createOrder: () => createOrder('pyusd'),
+        onApprove: (data) => handleApproval(data, 'pyusd'),
+        onError: (err) => showError(err)
+      }).render(document.getElementById('dynamic-payment-ui'));
+    }
+
+    function createOrder(method) {
+      const countryCode = Telegram.WebApp.initDataUnsafe.user?.language_code?.toUpperCase() || 'US';
+      
+      return paypal.actions.order.create({
+        purchase_units: [{
+          amount: { value: "10.00" }
+        }],
+        payment_source: method === 'local' ? { 
+          local: { 
+            country_code: countryCode,
+            name: getLocalMethod(countryCode)
+          } 
+        } : {}
+      });
+    }
+
+    function getLocalMethod(countryCode) {
+      const methods = {
+        'DE': 'giropay',
+        'PL': 'blik',
+        'NL': 'ideal'
+      };
+      return methods[countryCode] || 'giropay';
+    }
+
+    function handleApproval(data, method) {
+      document.getElementById('manual-methods').classList.add('hidden');
+      document.getElementById('success-message').classList.remove('hidden');
+      
+      Telegram.WebApp.sendData(JSON.stringify({
+        method,
+        orderID: data.orderID,
+        userID: Telegram.WebApp.initDataUnsafe.user?.id,
+        status: "success"
+      }));
+
+      setTimeout(() => Telegram.WebApp.close(), 2000);
+    }
+
+    function showError(err) {
+      document.getElementById('dynamic-payment-ui').innerHTML = `
+        <div class="error">Payment failed: ${err.message}</div>
+        <button onclick="location.reload()">Try Again</button>
+      `;
+    }
+  </script>
+</body>
+</html>
