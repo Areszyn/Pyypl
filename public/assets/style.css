@@ -1,0 +1,45 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 16px;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.hidden {
+  display: none !important;
+}
+
+#card-number, #expiry-date, #cvv {
+  height: 40px;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 4px;
+}
+
+button {
+  background: #0070ba;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error {
+  color: red;
+  margin: 10px 0;
+}
+
+.pyusd-btn {
+  background: #5d33cf;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.pyusd-btn:hover {
+  background: #4b27a5;
+}
