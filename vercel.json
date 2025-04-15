@@ -1,1 +1,13 @@
-
+{
+  "version": 2,
+  "builds": [
+    { "src": "public/**", "use": "@vercel/static" },
+    { "src": "api/validate.js", "use": "@vercel/node" },
+    { "src": "bot.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/", "dest": "/public/index.html" },
+    { "src": "/api/validate", "dest": "/api/validate.js" },
+    { "src": "/bot-webhook", "dest": "bot.js" }
+  ]
+}
